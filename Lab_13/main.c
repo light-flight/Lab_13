@@ -33,11 +33,14 @@ struct _binaryTree {
 typedef struct _binaryTree* tree;
 
 void fromTextToTree(char*, tree*);
+void addToTree(tree*, tree*);
+void print(tree);
 
 int main() {
 	char filename[] = "tree.txt";
 	tree root = NULL;
 	fromTextToTree(filename, &root);
+	print(root);
 	system("PAUSE");
 }
 
@@ -75,7 +78,7 @@ void fromTextToTree(char *filename, tree *root) {
 					(character == ',') || (character == '\0') ||
 					(character == '!') || (character == '?')) { // если слово закончилось
 					current->word[i] = '\0';
-					puts(current->word);
+					addToTree(&current, root);
 					current = NULL;
 				}
 				fseek(stream, ftell(stream) - 1, SEEK_SET); // возвращаем каретку на место
@@ -83,4 +86,24 @@ void fromTextToTree(char *filename, tree *root) {
 		}
 	}
 	fclose(stream);
+}
+
+void addToTree(tree *current, tree *root) {
+	if (!*root) {
+		(*current)->left = (*current)->right = NULL;
+		*root = *current;
+	}
+	else
+		if ((strcmp((*current)->word, (*root)->word)) <= 0)
+			addToTree(current, &(*root)->left);
+		else
+			addToTree(current, &(*root)->right);
+}
+
+void print(tree root) {
+	if (root) {
+		print(root->left);
+		puts(root->word);
+		print(root->right);
+	}
 }
