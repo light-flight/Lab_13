@@ -21,6 +21,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <sys\stat.h>
 
 //#define MAX_SENTENCE_ARRAY_LENGTH 255
 //#define MAX_WORD_ARRAY_LENGTH 20
@@ -37,10 +39,22 @@ void addToTree(tree*, tree*);
 void print(tree);
 
 int main() {
+	clock_t start, finish;
 	char filename[] = "tree.txt";
 	tree root = NULL;
+	struct stat  file_stat;
+
+	if (stat(filename, &file_stat) == -1) {
+		puts("Can not get file statistics!");
+	}
+	else {
+		printf("The size of \"%s\" is %u bytes.\n", filename, file_stat.st_size);
+	}
+
+	start = clock();
 	fromTextToTree(filename, &root);
-	print(root);
+	finish = clock();
+	printf("Simple concordance task was accomplished in %f sec.\n", ((double)(finish - start)) / CLOCKS_PER_SEC);
 	system("PAUSE");
 }
 
@@ -55,15 +69,16 @@ void fromTextToTree(char *filename, tree *root) {
 	}
 	while ((symbol = fgetc(stream)) != EOF) { // читаем посимвольно до конца файла
 		character = symbol;
-		if ((character != ' ') && (character != '.') &&
-			(character != ',') && (character != '\0') &&
-			(character != '!') && (character != '?')) {
+		if ((character != ' ') && (character != '.') && (character != '\n') &&
+		(character != ',') && (character != '\0') &&
+		(character != '!') && (character != '?')) {
 
-			if (current == NULL) { // если это новое слово, выделим память и подготовим счетчик
+			if (current == NULL) { // если это новое слово, выделим память, подготовим счетчики
 				if (!(current = (tree)malloc(sizeof(struct _binaryTree)))) {
 					puts("Can not allocate memory!");
 					return;
 				}
+				current->repeat = 1;
 				i = 0;
 			}
 
@@ -74,14 +89,14 @@ void fromTextToTree(char *filename, tree *root) {
 			}
 			else {
 				character = symbol;
-				if ((character == ' ') || (character == '.') ||
-					(character == ',') || (character == '\0') ||
-					(character == '!') || (character == '?')) { // если слово закончилось
-					current->word[i] = '\0';
+				if ((character == ' ') || (character == '.') || (character == '\n') ||
+				(character == ',') || (character == '\0') ||
+				(character == '!') || (character == '?')) { // если слово закончилось
+				    current->word[i] = '\0';
 					addToTree(&current, root);
 					current = NULL;
 				}
-				fseek(stream, ftell(stream) - 1, SEEK_SET); // возвращаем каретку на место
+				fseek(stream, ftell(stream) - 1, SEEK_SET); // возвращаем каретку назад на одну позицию
 			}
 		}
 	}
@@ -94,16 +109,22 @@ void addToTree(tree *current, tree *root) {
 		*root = *current;
 	}
 	else
-		if ((strcmp((*current)->word, (*root)->word)) <= 0)
+		if ((strcmp((*current)->word, (*root)->word)) < 0)
 			addToTree(current, &(*root)->left);
 		else
-			addToTree(current, &(*root)->right);
+			if ((strcmp((*current)->word, (*root)->word)) == 0)
+				(*root)->repeat++;
+			else
+				addToTree(current, &(*root)->right);
 }
 
 void print(tree root) {
 	if (root) {
 		print(root->left);
-		puts(root->word);
+		printf("%s", root->word);
+		if (root->repeat > 1)
+			printf(" [%d]", root->repeat);
+		printf("\n");
 		print(root->right);
 	}
 }
