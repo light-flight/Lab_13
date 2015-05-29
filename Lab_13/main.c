@@ -24,11 +24,8 @@
 #include <time.h>
 #include <sys\stat.h>
 
-//#define MAX_SENTENCE_ARRAY_LENGTH 255
-//#define MAX_WORD_ARRAY_LENGTH 20
-
 struct _binaryTree {
-	char word[20];
+	char word[21];
 	int repeat;
 	struct _binaryTree *left, *right;
 };
@@ -37,6 +34,7 @@ typedef struct _binaryTree* tree;
 void fromTextToTree(char*, tree*);
 void addToTree(tree*, tree*);
 void print(tree);
+void statistic(double);
 
 int main() {
 	clock_t start, finish;
@@ -55,6 +53,9 @@ int main() {
 	fromTextToTree(filename, &root);
 	finish = clock();
 	printf("Simple concordance task was accomplished in %f sec.\n", ((double)(finish - start)) / CLOCKS_PER_SEC);
+
+	statistic(((double)(finish - start)) / CLOCKS_PER_SEC);
+	print(root);
 	system("PAUSE");
 }
 
@@ -71,9 +72,9 @@ void fromTextToTree(char *filename, tree *root) {
 		character = symbol;
 		if ((character != ' ') && (character != '.') && (character != '\n') &&
 		(character != ',') && (character != '\0') &&
-		(character != '!') && (character != '?')) {
+		(character != '!') && (character != '?')) { // если это буква
 
-			if (current == NULL) { // если это новое слово, выделим память, подготовим счетчики
+			if (current == NULL) { // если это новое слово
 				if (!(current = (tree)malloc(sizeof(struct _binaryTree)))) {
 					puts("Can not allocate memory!");
 					return;
@@ -92,11 +93,11 @@ void fromTextToTree(char *filename, tree *root) {
 				if ((character == ' ') || (character == '.') || (character == '\n') ||
 				(character == ',') || (character == '\0') ||
 				(character == '!') || (character == '?')) { // если слово закончилось
-				    current->word[i] = '\0';
+					current->word[i] = '\0';
 					addToTree(&current, root);
 					current = NULL;
 				}
-				fseek(stream, ftell(stream) - 1, SEEK_SET); // возвращаем каретку назад на одну позицию
+				fseek(stream, -1, SEEK_CUR); // возвращаем каретку назад на одну позицию
 			}
 		}
 	}
@@ -127,4 +128,18 @@ void print(tree root) {
 		printf("\n");
 		print(root->right);
 	}
+}
+
+void statistic(double result) {
+	char speed_comment[80];
+	time_t t = time(NULL);
+	struct tm* aTm = localtime(&t);
+	FILE *timing;
+	if (!(timing = fopen("timing.txt", "a"))) {
+		puts("Can not open file \"timing.txt\"!");
+		return;
+	}
+	puts("Add a comment about optimisation:");
+	gets(speed_comment);
+	fprintf(timing, "[%02d:%02d:%02d] --- %f | %s\n", aTm->tm_hour, aTm->tm_min, aTm->tm_sec, result, speed_comment);
 }
