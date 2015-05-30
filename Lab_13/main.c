@@ -23,6 +23,7 @@
 #include <string.h>
 #include <time.h>
 #include <sys\stat.h>
+#include <locale.h>
 
 struct _binaryTree {
 	char word[21];
@@ -34,21 +35,28 @@ typedef struct _binaryTree* tree;
 void fromTextToTree(char*, tree*);
 void addToTree(tree*, tree*);
 void print(tree);
+void printInFile(tree);
+void recursionInOpenedStream(tree, FILE*);
 void statistic(double, char*, long unsigned int);
 long unsigned int file_size(char*);
 
 int main() {
+	setlocale(LC_ALL, "RUS");
 	clock_t start, finish;
-	char filename[] = "tree.txt";
+	char filename[] = "text.txt";
 	tree root = NULL;
 
 	start = clock();
 	fromTextToTree(filename, &root);
 	finish = clock();
-	printf("Task was accomplished in %f sec.\n", ((double)(finish - start)) / CLOCKS_PER_SEC);
+	printf("The tree has been created in %f sec.\n", ((double)(finish - start)) / CLOCKS_PER_SEC);
 
 	statistic(((double)(finish - start)) / CLOCKS_PER_SEC, filename, file_size(filename));
-	print(root);
+	
+	start = clock();
+	printInFile(root);
+	finish = clock();
+	printf("The tree has been printed in %f sec.\n", ((double)(finish - start)) / CLOCKS_PER_SEC);
 
 	system("PAUSE");
 }
@@ -64,9 +72,15 @@ void fromTextToTree(char *filename, tree *root) {
 	}
 	while ((symbol = fgetc(stream)) != EOF) { // читаем посимвольно до конца файла
 		character = symbol;
-		if ((character != ' ') && (character != '.') && (character != '\n') &&
-		(character != ',') && (character != '\0') &&
-		(character != '!') && (character != '?')) { // если это буква
+		if (
+		(character != ' ') && (character != '.') && (character != '\n') &&
+		(character != ',') && (character != '\0') && (character != '!') && 
+		(character != '?') && (character != '…') && (character != ':') &&
+		(character != ';') && (character != '«') && (character != '»') &&
+		(character != '"') && (character != '<') && (character != '>') &&
+		(character != '=') && (character != '(') && (character != ')') &&
+		(character != '[') && (character != ']') && (character != '{') &&
+		(character != '}') && (character != '„') && (character != '“') && (character != '–')) { // если это буква
 			if (!current) { // если это новое слово
 				if (!(current = (tree)malloc(sizeof(struct _binaryTree)))) { // выделяем для него память
 					puts("Can not allocate memory!");
@@ -114,6 +128,31 @@ void print(tree root) {
 	}
 }
 
+void printInFile(tree root) {
+	FILE *stream;
+	if (!(stream = fopen("concordance.txt", "w"))) {
+		puts("Can not open file \"concordance.txt\"!");
+		return;
+	}
+	recursionInOpenedStream(root, &stream);
+}
+
+void recursionInOpenedStream(tree root, FILE **stream) {
+	if (root) {
+		int i = 0;
+		recursionInOpenedStream(root->left, stream);
+		fprintf(*stream, "%s", root->word);
+		if (root->repeat > 1)
+			fprintf(*stream, " [%d]", root->repeat);
+		/*if (i++ == 2) {
+		fprintf(stream, "\n");
+		i = 0;
+		}*/
+		fprintf(*stream, "\n");
+		recursionInOpenedStream(root->right, stream);
+	}
+}
+
 void statistic(double result, char *filename, long unsigned int file_size) {
 	char speed_comment[80];
 	time_t t = time(NULL);
@@ -147,3 +186,4 @@ long unsigned int file_size(char* filename) {
 	else
 		return file_stat.st_size;
 }
+
