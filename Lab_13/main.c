@@ -136,10 +136,10 @@ void printInFileRecursion(tree root, FILE **stream, int *col) {
 		if (root->repeat > 1) {
 			fprintf(*stream, "%-30s", root->word);
 			(*col)++;
-			fprintf(*stream, "[%d]\t", root->repeat);
+			fprintf(*stream, "[%-4d]\t", root->repeat);
 		}
 		else {
-			fprintf(*stream, "%-36s", root->word);
+			fprintf(*stream, "%-36s\t", root->word);
 			(*col)++;
 		}
 		if (*col == 3) {
