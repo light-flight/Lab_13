@@ -63,8 +63,11 @@ int main() {
 }
 
 int fromTextToTree(char *filename, tree *root) {
-	int symbol, i;
+	int symbol, i, k, letter;
 	char character;
+	char notLetter[] = { ' ', ' ', ',', '.', '?', '!', ';', ':', '"', '=',
+		'[', ']', '{', '}', '…', '«', '»', '<', '>', '(', ')', '„', '“',
+		'–', '—', '-', '*', '%', '&', '#', '+', '\\', '/', '\n', '\t', '\0' };
 	tree current = NULL;
 	FILE *stream;
 	if (!(stream = fopen(filename, "r"))) {
@@ -73,15 +76,10 @@ int fromTextToTree(char *filename, tree *root) {
 	}
 	while ((symbol = fgetc(stream)) != EOF) { // читаем посимвольно до конца файла
 		character = symbol;
-		if (
-		(character != ' ') && (character != '.') && (character != '\n') &&
-		(character != ',') && (character != '\0') && (character != '!') && 
-		(character != '?') && (character != '…') && (character != ':') &&
-		(character != ';') && (character != '«') && (character != '»') &&
-		(character != '"') && (character != '<') && (character != '>') &&
-		(character != '=') && (character != '(') && (character != ')') &&
-		(character != '[') && (character != ']') && (character != '{') &&
-		(character != '}') && (character != '„') && (character != '“') && (character != '–')) { // если это буква
+		for (k = 0, letter = 1; k < sizeof(notLetter); k++)
+			if (character == notLetter[k])
+				letter = 0;
+		if (letter == 1) { // если это буква
 			if (!current) { // если это новое слово
 				if (!(current = (tree)malloc(sizeof(struct _binaryTree)))) { // выделяем для него память
 					puts("Can not allocate memory!");
