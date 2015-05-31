@@ -188,5 +188,7 @@ GeneratedArtifacts/
 _Pvt_Extensions/
 ModelManifest.xml
 
-# some other files used for debugging
+# some other files
 timing.txt
+concordance.txt
+words_by_length.txt
