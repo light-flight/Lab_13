@@ -1,3 +1,4 @@
+﻿// структура для бинарного дерева
 struct _binaryTree {
 	char word[31];
 	int repeat;
@@ -5,12 +6,16 @@ struct _binaryTree {
 };
 typedef struct _binaryTree* tree;
 
+// стуктура для двухсвязного списка,
+// который используется при обходе дерева в ширину
 struct queue {
 	tree tree_pointer;
 	struct list *prev, *next;
 };
 typedef struct queue* list;
 
+// структура, необходимая для удобной навигации
+// и оценке размера двухсвязного списка
 typedef struct DblLinkedList {
 	size_t size;
 	list head;

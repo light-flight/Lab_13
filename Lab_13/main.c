@@ -21,33 +21,42 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <locale.h>
 #include "Prototypes_and_Structures.h"
 
 int main() {
-	setlocale(LC_ALL, "RUS");
-	char filename[] = "text.txt";
-	tree root = NULL;
+	char filename[] = "text.txt"; // имя обрабатываемого файла с текстом
+	tree root = NULL; // исходный указатель на бинарное дерево
 
+	// обработка текста, создание бинарного дерева поиска
 	if (fromTextToTree(filename, &root) == 1)
 		puts("File \"text.txt\" has been processed.");
 	else
 		puts("Can not create a binary tree!");
-		
+	
+	// вывод дерева в файл
 	if (printInFile(root) == 1)
 		puts("File \"concordance.txt\" has been created or overwritten.");
 	else
 		puts("Printing function crashed!");
+
+	// нахождение и подсчет слов с заданной длиной
 	if (wordsWithLength(root) == 1)
 		puts("File \"words_by_length.txt\" has been created or overwritten.");
 	else
 		puts("Function \"wordsWithLength\" crashed");
+
 	system("PAUSE");
 }
 
+/* Создает бинарное дерево, "пробегая" по каждому символу в файле
+ * Аргументы: имя исходного файла, адрес дерева
+ * Возвращает 1, если выполнена успешно, и 0, если ошибка.
+ */
 int fromTextToTree(char *filename, tree *root) {
 	int symbol, i, k, letter;
 	char character;
+	// массив для знаков припинания и других символов,
+	// потенциально завершающих слово
 	char notLetter[] = { ' ', ' ', ',', '.', '?', '!', ';', ':', '"', '=',
 		'[', ']', '{', '}', '…', '«', '»', '<', '>', '(', ')', '„', '“',
 		'–', '—', '-', '*', '%', '&', '#', '+', '\\', '/', '\n', '\t', '\0' };
@@ -58,7 +67,9 @@ int fromTextToTree(char *filename, tree *root) {
 		return 0;
 	}
 	while ((symbol = fgetc(stream)) != EOF) { // читаем посимвольно до конца файла
-		character = symbol;
+		character = symbol;  // symbol нужен лишь для корректного сравнения с EOF
+		// проверка текущего символа на совпадение
+		// с каким-либо символом из массива 'notLetter'
 		for (k = 0, letter = 1; k < sizeof(notLetter); k++)
 			if (character == notLetter[k]) {
 				letter = 0;
@@ -77,8 +88,9 @@ int fromTextToTree(char *filename, tree *root) {
 		}
 		else {
 			if (current) { // если слово закончилось
-				current->word[i] = '\0';
-				addToTree(&current, root);
+				current->word[i] = '\0'; // дописываем нулевой байт в конец слова
+				addToTree(&current, root); // добавляем слово в дерево
+				free(current);
 				current = NULL;
 			}
 		}
@@ -86,18 +98,27 @@ int fromTextToTree(char *filename, tree *root) {
 	if ((symbol == EOF) && (current)) { // для последнего слова в файле
 		current->word[i] = '\0';
 		addToTree(&current, root);
+		free(current);
 		current = NULL;
 	}
 	fclose(stream);
 	return 1;
 }
 
+/* Добавляет слово в бинарное дерево поиска
+ * Вход: указатель на слово, указатель на корень дерева
+ */
 void addToTree(tree *current, tree *root) {
-	if (!*root) {
+	if (!*root) { // если дерево пустое
 		(*current)->left = (*current)->right = NULL;
 		*root = *current;
 	}
-	else
+	else // если дерево уже существует
+		 /* Слово меньшее в лексографическом порядке добавляется
+		  * в левую ветвь, большее - в правую. Если слово идентично
+		  * уже добавленному, то у добавленного слова счетчик
+		  * повторений увеличивается на единицу.
+		  */
 		if ((strcmp((*current)->word, (*root)->word)) < 0)
 			addToTree(current, &(*root)->left);
 		else
@@ -107,21 +128,29 @@ void addToTree(tree *current, tree *root) {
 				addToTree(current, &(*root)->right);
 }
 
-
+/* Выводит в файл конкорданс в виде списка слов в три колонки
+ * с количествоим их повторений в квадратных скобках.
+ * Предлагает 4 варианта обхода дерева.
+ * Вход: исходный корень дерева.
+ * Возвращает 1 в случае успеха и 0 в случае ошибки.
+ */
 int printInFile(tree root) {
 	FILE *stream;
 	int col = 0, key;
+	// создания файла для вывода конкорданса
 	if (!(stream = fopen("concordance.txt", "w"))) {
 		puts("Can not open file \"concordance.txt\"!");
 		return 0;
 	}
-	do {
-		fflush(stdin);
+	do { // выбор пользователем варианта обхода дерева
+		 // ввод защищен от случайных символов
+		fflush(stdin); 
 		puts("Choose the way to workaround the tree (put any key from 1 to 4):\n"
 			"    In depth:\n\t1 - Prefix\n\t2 - Intfix\n\t3 - Postfix\n4 - In width");
 	} while ((scanf("%d", &key) != 1) || (key < 1) || (key > 4));
 	switch (key)
 	{
+	// При выборе любого обхода в глубину вызывается одна и та же функция.
 	case 1:
 	case 2:
 	case 3:
@@ -133,24 +162,30 @@ int printInFile(tree root) {
 	default:
 		break;
 	}
+	fclose(stream);
 	return 1;
 }
 
+/* Осуществляет вывод дерева одним из вариантов обхода в глубину
+ * в зависимости от выбора пользователя.
+ * Вход: исходный корень дерева, указатель на поток открытого файла
+ * 'concordance.txt', номер текущей колонки, номер варианта обхода.
+ */
 void printInFileDepth(tree root, FILE **stream, int *col, int *key) {
 	if (root) {
 		switch (*key)
 		{
-		case 1:
+		case 1: // префискный обход
 			printWord(root, stream, col);
 			printInFileDepth(root->left, stream, col, key);
 			printInFileDepth(root->right, stream, col, key);
 			break;
-		case 2:
+		case 2: // инфиксный обход
 			printInFileDepth(root->left, stream, col, key);
 			printWord(root, stream, col);
 			printInFileDepth(root->right, stream, col, key);
 			break;
-		case 3:
+		case 3: // постфиксный обход
 			printInFileDepth(root->left, stream, col, key);
 			printInFileDepth(root->right, stream, col, key);
 			printWord(root, stream, col);
@@ -159,24 +194,36 @@ void printInFileDepth(tree root, FILE **stream, int *col, int *key) {
 	}
 }
 
+/* Осуществляет вывод дерева используя обход в ширину.
+ * Вход: исходный корень дерева, указатель на поток открытого файла
+ * 'concordance.txt', номер текущей колонки.
+ */
 void printInFileWidth(tree root, FILE **stream, int *col) {
-	DblLinkedList *queue = createDblLinkedList();
-	pushBack(&queue, root);
-	while (queue->size)
+	DblLinkedList *queue = createDblLinkedList(); // создание очереди
+	pushBack(&queue, root); // добавление исходного корня дерева в очередь
+	while (queue->size) // пока очередь не пуста
 	{
-		tree tmp = popFront(&queue);
-		printWord(tmp, stream, col);
-		if (tmp->left)
+		tree tmp = popFront(&queue); // удаляем головной элемент из очереди
+		printWord(tmp, stream, col); // печатаем слово в файл
+		if (tmp->left) // при наличии потомка по левой ветке ставим его в очередь
 			pushBack(&queue, tmp->left);
-		if (tmp->right)
+		if (tmp->right) // при наличии потомка по правой ветке ставим его в очередь
 			pushBack(&queue, tmp->right);
 	}
-	deleteDblLinkedList(&queue);
+	deleteDblLinkedList(&queue); // удаление использованной очереди
 }
 
+/* Осуществляет непосредственно печать слова и
+ * количества его повторений в файл.
+ * Организует трехколоночный вывод.
+ * Вход: исходный корень дерева, указатель на поток открытого файла
+ * 'concordance.txt', номер текущей колонки.
+ */
 void printWord(tree root, FILE **stream, int *col) {
 		if (root->repeat > 1) {
-			fprintf(*stream, "%-30s", root->word);
+			// если слово повторяется больше одного раза,
+			// то выводим количество его повторений
+			fprintf(*stream, "%-30s", root->word); 
 			(*col)++;
 			fprintf(*stream, "[%-4d]\t", root->repeat);
 		}
@@ -185,24 +232,34 @@ void printWord(tree root, FILE **stream, int *col) {
 			(*col)++;
 		}
 		if (*col == 3) {
+			// срабатывание счетчика для распределения по колонкам
 			fprintf(*stream, "\n");
 			*col = 0;
 		}
 }
 
-
+/* Подготавливает данные для функции вывода всех
+ * листьев дерева с заданной длиной, после - вызывает функцию,
+ * осуществляющую вывод и дописывает в файл количество напечатанных слов.
+ * Вход: исходный корень дерева.
+ * Возвращает 1 в случае успеха и 0 в случае ошибки.
+ */
 int wordsWithLength(tree root) {
 	int length = 0, amount = 0, col = 0;
 	do {
+		// ввод пользователем длины слова с защитой от ввода случайных значений
 		fflush(stdin);
 		puts("Put the word length");
 	} while ((scanf("%d", &length) != 1) || (length < 1) || (length > 30));
 	FILE *stream;
+	// создание файла для вывода резульата
 	if (!(stream = fopen("words_by_length.txt", "w"))) {
 		puts("Can not open file \"concordance.txt\"!");
 		return 0;
 	}
-	fprintf(stream, "Here is a list of words with length equal %d which are the leafs of the search binary tree:\n", length);
+	fprintf(stream, "Here is a list of words with length equal %d"
+		" which are the leafs of the search binary tree:\n", length);
+	// печать списка слов
 	wordsWithLengthRecursion(root, &stream, length, &amount, &col);
 	fprintf(stream, "\n----------------------------------------------"
 		"--------------------------------------------\nFound %d word(s)", amount);
@@ -210,10 +267,17 @@ int wordsWithLength(tree root) {
 	return 1;
 }
 
+/* Осуществляет непосредственную печать найденных слов в файл.
+ * Вход: исходный корень дерева, указатель на поток открытого файла
+ * 'concordance.txt', длина слова, счетчик количества найденных
+ * слов, номер текущей колонки.
+ */
 void wordsWithLengthRecursion(tree root, FILE **stream, int length, int *amount, int *col) {
 	if (root) {
 		wordsWithLengthRecursion(root->left, stream, length, amount, col);
 		if ((strlen(root->word) == length) && !(root->left) && !(root->right)) {
+			// если длина слова удовлетворяет условию и слово является
+			// листом бинарного дерева поиска
 			fprintf(*stream, "%-30s", root->word);
 			(*col)++;
 			if (*col == 3) {
