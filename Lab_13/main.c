@@ -21,25 +21,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
-#include <sys\stat.h>
 #include <locale.h>
-
-struct _binaryTree {
-	char word[31];
-	int repeat;
-	struct _binaryTree *left, *right;
-};
-typedef struct _binaryTree* tree;
-
-int fromTextToTree(char*, tree*);
-void addToTree(tree*, tree*);
-
-int printInFile(tree);
-void printInFileRecursion(tree, FILE**, int*);
-
-int wordsWithLength(tree);
-void wordsWithLengthRecursion(tree, FILE**, int, int*, int*);
+#include "Prototypes_and_Structures.h"
 
 int main() {
 	setlocale(LC_ALL, "RUS");
@@ -77,8 +60,10 @@ int fromTextToTree(char *filename, tree *root) {
 	while ((symbol = fgetc(stream)) != EOF) { // читаем посимвольно до конца файла
 		character = symbol;
 		for (k = 0, letter = 1; k < sizeof(notLetter); k++)
-			if (character == notLetter[k])
+			if (character == notLetter[k]) {
 				letter = 0;
+				break;
+			}
 		if (letter == 1) { // если это буква
 			if (!current) { // если это новое слово
 				if (!(current = (tree)malloc(sizeof(struct _binaryTree)))) { // выделяем для него память
@@ -97,6 +82,11 @@ int fromTextToTree(char *filename, tree *root) {
 				current = NULL;
 			}
 		}
+	}
+	if ((symbol == EOF) && (current)) { // для последнего слова в файле
+		current->word[i] = '\0';
+		addToTree(&current, root);
+		current = NULL;
 	}
 	fclose(stream);
 	return 1;
@@ -117,20 +107,74 @@ void addToTree(tree *current, tree *root) {
 				addToTree(current, &(*root)->right);
 }
 
+
 int printInFile(tree root) {
 	FILE *stream;
-	int col = 0;
+	int col = 0, key;
 	if (!(stream = fopen("concordance.txt", "w"))) {
 		puts("Can not open file \"concordance.txt\"!");
 		return 0;
 	}
-	printInFileRecursion(root, &stream, &col);
+	do {
+		fflush(stdin);
+		puts("Choose the way to workaround the tree (put any key from 1 to 4):\n"
+			"    In depth:\n\t1 - Prefix\n\t2 - Intfix\n\t3 - Postfix\n4 - In width");
+	} while ((scanf("%d", &key) != 1) || (key < 1) || (key > 4));
+	switch (key)
+	{
+	case 1:
+	case 2:
+	case 3:
+		printInFileDepth(root, &stream, &col, &key);
+		break;
+	case 4:
+		printInFileWidth(root, &stream, &col);
+		break;
+	default:
+		break;
+	}
 	return 1;
 }
 
-void printInFileRecursion(tree root, FILE **stream, int *col) {
+void printInFileDepth(tree root, FILE **stream, int *col, int *key) {
 	if (root) {
-		printInFileRecursion(root->left, stream, col);
+		switch (*key)
+		{
+		case 1:
+			printWord(root, stream, col);
+			printInFileDepth(root->left, stream, col, key);
+			printInFileDepth(root->right, stream, col, key);
+			break;
+		case 2:
+			printInFileDepth(root->left, stream, col, key);
+			printWord(root, stream, col);
+			printInFileDepth(root->right, stream, col, key);
+			break;
+		case 3:
+			printInFileDepth(root->left, stream, col, key);
+			printInFileDepth(root->right, stream, col, key);
+			printWord(root, stream, col);
+			break;
+		}
+	}
+}
+
+void printInFileWidth(tree root, FILE **stream, int *col) {
+	DblLinkedList *queue = createDblLinkedList();
+	pushBack(&queue, root);
+	while (queue->size)
+	{
+		tree tmp = popFront(&queue);
+		printWord(tmp, stream, col);
+		if (tmp->left)
+			pushBack(&queue, tmp->left);
+		if (tmp->right)
+			pushBack(&queue, tmp->right);
+	}
+	deleteDblLinkedList(&queue);
+}
+
+void printWord(tree root, FILE **stream, int *col) {
 		if (root->repeat > 1) {
 			fprintf(*stream, "%-30s", root->word);
 			(*col)++;
@@ -141,12 +185,11 @@ void printInFileRecursion(tree root, FILE **stream, int *col) {
 			(*col)++;
 		}
 		if (*col == 3) {
-		fprintf(*stream, "\n");
-		*col = 0;
+			fprintf(*stream, "\n");
+			*col = 0;
 		}
-		printInFileRecursion(root->right, stream, col);
-	}
 }
+
 
 int wordsWithLength(tree root) {
 	int length = 0, amount = 0, col = 0;
@@ -159,7 +202,7 @@ int wordsWithLength(tree root) {
 		puts("Can not open file \"concordance.txt\"!");
 		return 0;
 	}
-	fprintf(stream, "Here is a list of words with length equal %d:\n", length);
+	fprintf(stream, "Here is a list of words with length equal %d which are the leafs of the search binary tree:\n", length);
 	wordsWithLengthRecursion(root, &stream, length, &amount, &col);
 	fprintf(stream, "\n----------------------------------------------"
 		"--------------------------------------------\nFound %d word(s)", amount);
@@ -170,7 +213,7 @@ int wordsWithLength(tree root) {
 void wordsWithLengthRecursion(tree root, FILE **stream, int length, int *amount, int *col) {
 	if (root) {
 		wordsWithLengthRecursion(root->left, stream, length, amount, col);
-		if (strlen(root->word) == length) {
+		if ((strlen(root->word) == length) && !(root->left) && !(root->right)) {
 			fprintf(*stream, "%-30s", root->word);
 			(*col)++;
 			if (*col == 3) {
