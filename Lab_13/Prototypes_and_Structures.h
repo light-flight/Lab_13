@@ -10,7 +10,7 @@ typedef struct _binaryTree* tree;
 // который используется при обходе дерева в ширину
 struct queue {
 	tree tree_pointer;
-	struct list *prev, *next;
+	struct queue *prev, *next;
 };
 typedef struct queue* list;
 
